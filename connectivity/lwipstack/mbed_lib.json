@@ -222,7 +222,10 @@
         "MIMXRT105X": {
             "mem-size": 36560
         },
-        "PORTENTA_H7": {
+        "ARDUINO_PORTENTA_H7": {
+            "mem-size": 16000
+        },
+        "ARDUINO_GIGA": {
             "mem-size": 16000
         },
         "FVP_MPS2_M3": {

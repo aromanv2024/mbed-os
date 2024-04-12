@@ -1,0 +1,25 @@
+# Copyright (c) 2024 ARM Limited. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# In order to use the Cypress WHD driver, we need some level of Cypress HAL functionality available.
+# However, for non-Cypress chips, these functions aren't available from the target code.
+# This directory contains a minimal implementation of Cypress HAL designed to work on generic chips.
+# Note that currently some of this has to be implemented on a per-target level, as Mbed
+# does not have an SDIO HAL API.  Hopefully this can be fixed someday...
+
+add_library(mbed-minimal-cyhal STATIC
+	cy_hal.c
+	cyhal_spi.c
+	cyhal_system.c)
+target_include_directories(mbed-minimal-cyhal PUBLIC .)
+target_link_libraries(mbed-minimal-cyhal PUBLIC mbed-core-flags mbed-cy-rtos-abstraction)
+
+# This is needed in order to make cybsp_wifi.h include cycfg.h
+target_compile_definitions(mbed-minimal-cyhal PUBLIC COMPONENT_CUSTOM_DESIGN_MODUS)
+
+if(STM32H7 IN_LIST MBED_TARGET_LABELS)
+	target_sources(mbed-minimal-cyhal PRIVATE
+		TARGET_STM32H7/cyhal_sdio.c
+		TARGET_STM32H7/cyhal_gpio.cpp)
+	target_include_directories(mbed-minimal-cyhal PUBLIC TARGET_STM32H7)
+endif()

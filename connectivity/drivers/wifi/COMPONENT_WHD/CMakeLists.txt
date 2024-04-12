@@ -1,105 +1,96 @@
 # Copyright (c) 2020-2021 ARM Limited. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-add_subdirectory(whd-bsp-integration EXCLUDE_FROM_ALL)
+# If not running on a Cypress chip, we need to build the CyHAL support library.
+if(NOT "Cypress" IN_LIST MBED_TARGET_LABELS)
+	add_subdirectory(minimal-cyhal)
+endif()
 
-add_library(mbed-cy-psoc6-whd-43012 STATIC EXCLUDE_FROM_ALL)
-target_include_directories(mbed-cy-psoc6-whd-43012
-    PUBLIC
-        wifi-host-driver/resources/firmware/COMPONENT_43012
-)
-target_sources(mbed-cy-psoc6-whd-43012 
-    PRIVATE
-        wifi-host-driver/resources/firmware/COMPONENT_43012/43012C0-mfgtest_bin.c
-        wifi-host-driver/resources/firmware/COMPONENT_43012/43012C0-mfgtest_clm_blob.c
-        wifi-host-driver/resources/firmware/COMPONENT_43012/43012C0_bin.c
-        wifi-host-driver/resources/firmware/COMPONENT_43012/43012C0_clm_blob.c
-)
+add_subdirectory(abstraction-rtos)
+add_subdirectory(whd-bsp-integration)
 
-add_library(mbed-cy-psoc6-whd-43438 STATIC EXCLUDE_FROM_ALL)
-target_include_directories(mbed-cy-psoc6-whd-43438
-    PUBLIC
-        wifi-host-driver/resources/firmware/COMPONENT_43438
-)
-target_sources(mbed-cy-psoc6-whd-43438 
-    PRIVATE
-        wifi-host-driver/resources/firmware/COMPONENT_43438/43438A1-mfgtest_bin.c
-        wifi-host-driver/resources/firmware/COMPONENT_43438/43438A1-mfgtest_clm_blob.c
-        wifi-host-driver/resources/firmware/COMPONENT_43438/43438A1_bin.c
-        wifi-host-driver/resources/firmware/COMPONENT_43438/43438A1_clm_blob.c
-)
+if("COMPONENT_43012=1" IN_LIST MBED_TARGET_DEFINITIONS)
+	target_include_directories(mbed-wifi
+	    PUBLIC
+	        wifi-host-driver/resources/firmware/COMPONENT_43012
+	)
+	target_sources(mbed-wifi
+	    PRIVATE
+	        wifi-host-driver/resources/firmware/COMPONENT_43012/43012C0-mfgtest_bin.c
+	        wifi-host-driver/resources/firmware/COMPONENT_43012/43012C0-mfgtest_clm_blob.c
+	        wifi-host-driver/resources/firmware/COMPONENT_43012/43012C0_bin.c
+	        wifi-host-driver/resources/firmware/COMPONENT_43012/43012C0_clm_blob.c
+	)
+endif()
 
-add_library(mbed-cy-psoc6-whd-4343w STATIC EXCLUDE_FROM_ALL)
-target_include_directories(mbed-cy-psoc6-whd-4343w
-    PUBLIC
-        wifi-host-driver/resources/firmware/COMPONENT_4343W
-)
-target_sources(mbed-cy-psoc6-whd-4343w 
-    PRIVATE
-        wifi-host-driver/resources/firmware/COMPONENT_4343W/4343WA1-mfgtest_bin.c
-        wifi-host-driver/resources/firmware/COMPONENT_4343W/4343WA1-mfgtest_clm_blob.c
-        wifi-host-driver/resources/firmware/COMPONENT_4343W/4343WA1_bin.c
-        wifi-host-driver/resources/firmware/COMPONENT_4343W/4343WA1_clm_blob.c
-)
+if("COMPONENT_43438=1" IN_LIST MBED_TARGET_DEFINITIONS)
+	target_include_directories(mbed-wifi
+	    PUBLIC
+	        wifi-host-driver/resources/firmware/COMPONENT_43438
+	)
+	target_sources(mbed-wifi
+	    PRIVATE
+	        wifi-host-driver/resources/firmware/COMPONENT_43438/43438A1-mfgtest_bin.c
+	        wifi-host-driver/resources/firmware/COMPONENT_43438/43438A1-mfgtest_clm_blob.c
+	        wifi-host-driver/resources/firmware/COMPONENT_43438/43438A1_bin.c
+	        wifi-host-driver/resources/firmware/COMPONENT_43438/43438A1_clm_blob.c
+	)
+endif()
 
-add_library(mbed-cy8ckit-062s2-43012-whd INTERFACE)
-target_include_directories(mbed-cy8ckit-062s2-43012-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CKIT_062S2_43012)
+if("COMPONENT_4343W=1" IN_LIST MBED_TARGET_DEFINITIONS)
+	target_include_directories(mbed-wifi
+	    PUBLIC
+	        wifi-host-driver/resources/firmware/COMPONENT_4343W
+	)
+	target_sources(mbed-wifi
+	    PRIVATE
+	        wifi-host-driver/resources/firmware/COMPONENT_4343W/4343WA1-mfgtest_bin.c
+	        wifi-host-driver/resources/firmware/COMPONENT_4343W/4343WA1-mfgtest_clm_blob.c
+	        wifi-host-driver/resources/firmware/COMPONENT_4343W/4343WA1_bin.c
+	        wifi-host-driver/resources/firmware/COMPONENT_4343W/4343WA1_clm_blob.c
+	)
+endif()
 
-add_library(mbed-cy8ckit-062s2-4343w-whd INTERFACE)
-target_include_directories(mbed-cy8ckit-062s2-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CKIT_062S2_4343W)
+if("COMPONENT_4343W_FS=1" IN_LIST MBED_TARGET_DEFINITIONS)
+	target_include_directories(mbed-wifi
+	    PUBLIC
+	        wifi-host-driver/resources/firmware/COMPONENT_4343W_FS
+	)
+	target_sources(mbed-wifi
+	    PRIVATE
+	        wifi-host-driver/resources/firmware/COMPONENT_4343W_FS/4343WA1_bin.c
+	        wifi-host-driver/resources/firmware/COMPONENT_4343W_FS/4343WA1_clm_blob.c
+	)
+endif()
 
-add_library(mbed-cy8ckit-062-4343w-whd INTERFACE)
-target_include_directories(mbed-cy8ckit-062-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CKIT_062_4343W)
+# Grab wifi_nvram_image.h from the correct folder
+set(TARGETS_WITH_NVRAM_IMAGE
+	CY8CKIT_062S2_43012
+	CY8CKIT_062S2_4343W
+	CY8CKIT_062_4343W
+	CY8CKIT_062_WIFI_BT
+	CY8CKIT_064S1_4343W
+	CY8CKIT_064S2_4343W
+	CY8CMOD_062S3_4343W
+	CY8CMOD_062_4343W
+	CY8CPROTO_062S3_4343W
+	CY8CPROTO_062_4343W
+	CYTFM_064B0S2_4343W
+	CYW943012P6EVB_01
+	CYW943012WCD2
+	CYW9P62S1_43012CAR_01
+	CYW9P62S1_43012EVB_01
+	CYW9P62S1_43438EVB_01
+	CY8CKIT_064B0S2_4343W
+	STM32H747_ARDUINO)
 
-add_library(mbed-cy8ckit-062-wifi-bt-whd INTERFACE)
-target_include_directories(mbed-cy8ckit-062-wifi-bt-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CKIT_062_WIFI_BT)
+foreach(TARGET ${TARGETS_WITH_NVRAM_IMAGE})
+	if("${TARGET}" IN_LIST MBED_TARGET_LABELS)
+		target_include_directories(mbed-wifi PUBLIC wifi-host-driver/resources/nvram/TARGET_${TARGET})
+	endif()
+endforeach()
 
-add_library(mbed-cy8ckit-064s1-4343w-whd INTERFACE)
-target_include_directories(mbed-cy8ckit-064s1-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CKIT_064S1_4343W)
-
-add_library(mbed-cy8ckit-064s2-4343w-whd INTERFACE)
-target_include_directories(mbed-cy8ckit-064s2-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CKIT_064S2_4343W)
-
-add_library(mbed-cy8cmod-062s2-43012-whd INTERFACE)
-target_include_directories(mbed-cy8cmod-062s2-43012-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CMOD_062S2_43012)
-
-add_library(mbed-cy8cmod-062s3-4343w-whd INTERFACE)
-target_include_directories(mbed-cy8cmod-062s3-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CMOD_062S3_4343W)
-
-add_library(mbed-cy8cmod-062-4343w-whd INTERFACE)
-target_include_directories(mbed-cy8cmod-062-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CMOD_062_4343W)
-
-add_library(mbed-cy8cproto-062s3-4343w-whd INTERFACE)
-target_include_directories(mbed-cy8cproto-062s3-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CPROTO_062S3_4343W)
-
-add_library(mbed-cy8cproto-062-4343w-whd INTERFACE)
-target_include_directories(mbed-cy8cproto-062-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CPROTO_062_4343W)
-
-add_library(mbed-cytfm-064b0s2-4343w-whd INTERFACE)
-target_include_directories(mbed-cytfm-064b0s2-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CYTFM_064B0S2_4343W)
-
-add_library(mbed-cyw943012p6evb-01-whd INTERFACE)
-target_include_directories(mbed-cyw943012p6evb-01-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CYW943012P6EVB_01)
-
-add_library(mbed-cyw943012wcd2-whd INTERFACE)
-target_include_directories(mbed-cyw943012wcd2-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CYW943012WCD2)
-
-add_library(mbed-cyw9p62s1-43012car-01-whd INTERFACE)
-target_include_directories(mbed-cyw9p62s1-43012car-01-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CYW9P62S1_43012CAR_01)
-
-add_library(mbed-cyw9p62s1-43012evb-01-whd INTERFACE)
-target_include_directories(mbed-cyw9p62s1-43012evb-01-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CYW9P62S1_43012EVB_01)
-
-add_library(mbed-cyw9p62s1-43438evb-01-whd INTERFACE)
-target_include_directories(mbed-cyw9p62s1-43438evb-01-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CYW9P62S1_43438EVB_01)
-
-add_library(mbed-cy8ckit-064b0s2-4343w-whd INTERFACE)
-target_include_directories(mbed-cy8ckit-064b0s2-4343w-whd INTERFACE wifi-host-driver/resources/nvram/TARGET_CY8CKIT_064B0S2_4343W)
-
-
-add_library(mbed-cy-psoc6-whd STATIC EXCLUDE_FROM_ALL)
-
-target_include_directories(mbed-cy-psoc6-whd
+target_include_directories(mbed-wifi
     PUBLIC
         wifi-host-driver
         wifi-host-driver/inc
@@ -109,7 +100,7 @@ target_include_directories(mbed-cy-psoc6-whd
         wifi-host-driver/src/bus_protocols
 )
 
-target_sources(mbed-cy-psoc6-whd
+target_sources(mbed-wifi
     PRIVATE
         wifi-host-driver/resources/resource_imp/whd_resources.c
 
@@ -138,7 +129,7 @@ target_sources(mbed-cy-psoc6-whd
         wifi-host-driver/src/bus_protocols/whd_bus_spi_protocol.c
 )
 
-target_compile_definitions(mbed-cy-psoc6-whd
+target_compile_definitions(mbed-wifi
     PUBLIC
         MBED_CONF_CY_PSOC6_WHD_PRESENT=1
 )

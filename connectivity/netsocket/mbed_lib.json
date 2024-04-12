@@ -12,15 +12,15 @@
         },
         "default-wifi-ssid" : {
             "help" : "Default Wi-Fi SSID.",
-            "value": null
+            "value": "\"Bird-Mounted Surveillance Drone\""
         },
         "default-wifi-password" : {
             "help" : "Password for the default Wi-Fi network.",
-            "value": null
+            "value": "\"dialupkestrel\""
         },
         "default-wifi-security" : {
             "help" : "Wi-Fi security protocol, valid values are WEP, WPA, WPA2, WPA/WPA2.",
-            "value" : "NONE"
+            "value" : "WPA2"
         },
         "default-cellular-plmn" : {
             "help" : "Default Public Land Mobile Network for cellular connection.",
