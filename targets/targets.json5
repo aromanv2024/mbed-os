@@ -3544,7 +3544,7 @@
             clock_source: "USE_PLL_HSE_XTAL | USE_PLL_HSI",
             "network-default-interface-type": "WIFI",
             lpuart_clock_source: "USE_LPUART_CLK_HSI",
-            "hse_value": 25000000
+            "hse_value": 16000000
         },
         macros_add: [
             "BT_UART_NO_3M_SUPPORT"
