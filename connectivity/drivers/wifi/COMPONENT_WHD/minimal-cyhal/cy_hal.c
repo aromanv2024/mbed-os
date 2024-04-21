@@ -21,27 +21,10 @@
 #include "cyhal.h"
 #include "mbed_thread.h"
 #include "mbed_wait_api.h"
-#include "minimal_cyhal_config.h"
+
+#include <minimal_cyhal_config.h>
 
 static cyhal_sdio_t sdio_obj;
-
-/* Edit  Pin configuration */
-const pinconfig_t PinConfig[] = {
-
-    [CYBSP_WIFI_WL_REG_ON] = WIFI_WL_REG_ON,
-#ifdef CYBSP_WIFI_32K_CLK
-    [CYBSP_WIFI_32K_CLK]  =  WIFI_32K_CLK,
-#endif /* CYBSP_WIFI_32K_CLK */
-    [CYBSP_LED1    ]      =  BSP_LED1,
-    [CYBSP_LED2    ]      =  BSP_LED2,
-    [CYBSP_WIFI_SDIO_CMD] =  WIFI_SDIO_CMD,
-    [CYBSP_WIFI_SDIO_CLK] =  WIFI_SDIO_CLK,
-    [CYBSP_WIFI_SDIO_D0 ] =  WIFI_SDIO_D0,
-    [CYBSP_WIFI_SDIO_D1 ] =  WIFI_SDIO_D1,
-    [CYBSP_WIFI_SDIO_D2 ] =  WIFI_SDIO_D2,
-    [CYBSP_WIFI_SDIO_D3 ] =  WIFI_SDIO_D3,
-    [CYBSP_SDIO_OOB_IRQ ] =  WIFI_SDIO_OOB_IRQ //VIKR
-};
 
 void Cy_SysLib_Delay(uint32_t milliseconds)
 {

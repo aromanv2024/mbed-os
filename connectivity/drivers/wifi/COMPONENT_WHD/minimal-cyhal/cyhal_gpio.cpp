@@ -24,12 +24,15 @@
 #include "cybsp.h"
 #include "mbed.h"
 
-extern pinconfig_t      PinConfig[];
+#include <minimal_cyhal_config.h>
 
 /*******************************************************************************
 *       Internal
 *******************************************************************************/
-static mbed::InterruptIn *oob_irq;
+
+static mbed::InterruptIn * interruptIns[MINIMAL_CYHAL_NUM_PINS] = {};
+static mbed::DigitalOut * digitalOuts[MINIMAL_CYHAL_NUM_PINS] = {};
+
 static cyhal_gpio_event_t oob_event = CYHAL_GPIO_IRQ_FALL;
 static cyhal_gpio_event_callback_t oob_handler;
 static void *oob_handler_arg;
@@ -45,22 +48,50 @@ static void cb()
 /*******************************************************************************
 *       HAL Implementation
 *******************************************************************************/
+
 cy_rslt_t cyhal_gpio_init(cyhal_gpio_t pin, cyhal_gpio_direction_t direction, cyhal_gpio_drive_mode_t drvMode, bool initVal)
 {
     cy_rslt_t     ret = CY_RSLT_SUCCESS;
 
+    // Find pin name
+    PinName pinName;
+    switch(pin)
+    {
+        case CYBSP_WIFI_WL_REG_ON:
+            pinName = WIFI_WL_REG_ON;
+            break;
+        case CYBSP_LED1:
+            pinName = BSP_LED1;
+            break;
+        case CYBSP_LED2:
+            pinName = BSP_LED2;
+            break;
+        case CYBSP_SDIO_OOB_IRQ:
+            pinName = WIFI_SDIO_OOB_IRQ;
+            break;
+        default:
+            return CY_RSLT_CREATE(CY_RSLT_TYPE_ERROR, CY_RSLT_MODULE_ABSTRACTION_HAL, 1);
+    }
+
+    // Ignore the parameter and take the pin config directly from a static array definitions.
+    // For the purposes of the wifi driver, pins are only initialized as digital out or interrupt in,
+    // so we just need to handle those two use cases.
+    if(direction == CYHAL_GPIO_DIR_OUTPUT)
+    {
+        digitalOuts[pin] = new mbed::DigitalOut(pinName, initVal);
+    }
+    else
+    {
+        interruptIns[pin] = new mbed::InterruptIn(pinName);
+    }
+
     // Workaround to enable GPIOJ clock
     if (pin == CYBSP_WIFI_WL_REG_ON) {
-        __HAL_RCC_GPIOJ_CLK_ENABLE();
         // Ensure FS and BlockDevice are initialized on time if needed
         // TODO move this
         //wiced_filesystem_init();
     }
-    // Ignore the parameter and take the pin config directly from a static array defintions
-    HAL_GPIO_Init(PinConfig[pin].port, &PinConfig[pin].config);
-    if (direction == CYHAL_GPIO_DIR_OUTPUT) {
-        HAL_GPIO_WritePin(PinConfig[pin].port, PinConfig[pin].config.Pin, (initVal) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-    }
+
     // Workaround to initialize sdio interface without cypress bsp init
     if (pin == CYBSP_WIFI_WL_REG_ON) {
         cyhal_sdio_t *sdio_p = cybsp_get_wifi_sdio_obj();
@@ -71,13 +102,12 @@ cy_rslt_t cyhal_gpio_init(cyhal_gpio_t pin, cyhal_gpio_direction_t direction, cy
 
 void cyhal_gpio_write(cyhal_gpio_t pin, bool value)
 {
-    HAL_GPIO_WritePin(PinConfig[pin].port, PinConfig[pin].config.Pin, (value) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    digitalOuts[pin]->write(value);
 }
 
 void cyhal_gpio_register_callback(cyhal_gpio_t pin, cyhal_gpio_event_callback_t handler, void *handler_arg)
 {
-    if (handler && handler_arg && (oob_irq == NULL)) {
-        oob_irq = new mbed::InterruptIn(PJ_5);
+    if (handler && handler_arg) {
         oob_handler = handler;
         oob_handler_arg = handler_arg;
     }
@@ -88,17 +118,20 @@ void cyhal_gpio_enable_event(cyhal_gpio_t pin, cyhal_gpio_event_t event, uint8_t
     oob_event = event;
     if (enable) {
         if (event == CYHAL_GPIO_IRQ_RISE) {
-            oob_irq->rise(cb);
+            interruptIns[pin]->rise(cb);
         }
         if (event == CYHAL_GPIO_IRQ_FALL) {
-            oob_irq->fall(cb);
+            interruptIns[pin]->fall(cb);
         }
-    } else if (oob_irq != NULL) {
-        delete oob_irq;
+        interruptIns[pin]->enable_irq();
+    } else {
+        interruptIns[pin]->disable_irq();
     }
 }
 
 void cyhal_gpio_free(cyhal_gpio_t pin)
 {
-    // Do nothing
+    // Delete any objects associated with the pins
+    delete interruptIns[pin];
+    delete digitalOuts[pin];
 }

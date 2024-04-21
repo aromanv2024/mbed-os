@@ -85,6 +85,7 @@
 #include <stdbool.h>
 #include "cy_result.h"
 #include "cyhal_hw_types.h"
+#include <PinNames.h>
 
 #if defined(__cplusplus)
 extern "C" {

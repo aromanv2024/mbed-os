@@ -40,8 +40,7 @@
 
 #pragma once
 #include <stdbool.h>
-#include "stm32h7xx_hal.h"
-#include "PinNames.h"
+#include <stdint.h>
 
 /*
  #include "TODO: Port specific header file"
@@ -65,13 +64,6 @@ extern "C" {
  */
 
 typedef int32_t  cyhal_gpio_t;
-
-/** GPIO object */
-typedef struct
-{
-  GPIO_TypeDef      *port;
-  GPIO_InitTypeDef  config;
-} pinconfig_t;
 
 /** Clock divider object */
 typedef struct

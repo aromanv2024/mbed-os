@@ -293,8 +293,7 @@ nsapi_error_t WhdSTAInterface::connect()
         _olm->init_ols(_whd_emac.ifp, this);
     }
 
-    if ((_ssid == NULL) ||
-            (strlen(_ssid) == 0)) {
+    if ((strlen(_ssid) == 0)) {
         return NSAPI_ERROR_PARAMETER;
     }
 

@@ -10,7 +10,8 @@
 add_library(mbed-minimal-cyhal STATIC
 	cy_hal.c
 	cyhal_spi.c
-	cyhal_system.c)
+	cyhal_system.c
+	cyhal_gpio.cpp)
 target_include_directories(mbed-minimal-cyhal PUBLIC .)
 target_link_libraries(mbed-minimal-cyhal PUBLIC mbed-core-flags mbed-cy-rtos-abstraction)
 
@@ -19,7 +20,10 @@ target_compile_definitions(mbed-minimal-cyhal PUBLIC COMPONENT_CUSTOM_DESIGN_MOD
 
 if(STM32H7 IN_LIST MBED_TARGET_LABELS)
 	target_sources(mbed-minimal-cyhal PRIVATE
-		TARGET_STM32H7/cyhal_sdio.c
-		TARGET_STM32H7/cyhal_gpio.cpp)
+		TARGET_STM32H7/cyhal_sdio.c)
 	target_include_directories(mbed-minimal-cyhal PUBLIC TARGET_STM32H7)
+
+	if(STM32H747_ARDUINO IN_LIST MBED_TARGET_LABELS)
+		target_include_directories(mbed-minimal-cyhal PUBLIC TARGET_STM32H7/TARGET_STM32H747_ARDUINO)
+	endif()
 endif()

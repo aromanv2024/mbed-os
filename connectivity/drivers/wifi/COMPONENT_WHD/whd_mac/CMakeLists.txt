@@ -1,7 +1,7 @@
 # Copyright (c) 2020 ARM Limited. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-target_include_directories(mbed-emac
+target_include_directories(mbed-wifi
     INTERFACE
         .
         ./interface
@@ -9,7 +9,7 @@ target_include_directories(mbed-emac
         ./utils
 )
 
-target_sources(mbed-emac
+target_sources(mbed-wifi
     INTERFACE
         interface/CyDhcpServer.cpp
         interface/WhdAccessPoint.cpp

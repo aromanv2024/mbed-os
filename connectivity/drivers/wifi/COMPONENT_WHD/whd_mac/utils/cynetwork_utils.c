@@ -47,9 +47,6 @@ void ipv4_to_string(char buffer[16], uint32_t ipv4_address)
 {
     uint8_t *ip = (uint8_t *)&ipv4_address;
 
-    /* unsigned_to_decimal_string() null-terminates the string
-     * Save the original last character and replace it */
-    char last_char = buffer[16];
     unsigned_to_decimal_string(ip[0], &buffer[0], 3, 3);
     buffer[3] = '.';
     unsigned_to_decimal_string(ip[1], &buffer[4], 3, 3);
@@ -57,7 +54,6 @@ void ipv4_to_string(char buffer[16], uint32_t ipv4_address)
     unsigned_to_decimal_string(ip[2], &buffer[8], 3, 3);
     buffer[11] = '.';
     unsigned_to_decimal_string(ip[3], &buffer[12], 3, 3);
-    buffer[16] = last_char;
 }
 
 uint32_t string_to_ipv4(const char *buffer)

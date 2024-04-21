@@ -15,4 +15,4 @@
  * limitations under the License.
  */
 
-#include "cycfg_pins.h"
+#include "minimal_cyhal_config.h"

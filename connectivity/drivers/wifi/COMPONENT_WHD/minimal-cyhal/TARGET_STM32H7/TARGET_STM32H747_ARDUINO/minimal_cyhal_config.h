@@ -38,12 +38,6 @@
 #define CYBSP_WIFI_HOST_WAKE_IRQ_EVENT CYHAL_GPIO_IRQ_FALL
 #define CYBSP_WIFI_HOST_WAKE CYBSP_SDIO_OOB_IRQ
 
-#define BSP_LED1            {GPIOK,{.Pin= GPIO_PIN_5 , .Mode = GPIO_MODE_OUTPUT_PP , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_LOW}}
-#define BSP_LED2            {GPIOK,{.Pin= GPIO_PIN_6 , .Mode = GPIO_MODE_OUTPUT_PP , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_LOW}}
-#define BSP_LED3            {GPIOK,{.Pin= GPIO_PIN_7 , .Mode = GPIO_MODE_OUTPUT_PP , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_LOW}}
-
-/* power pin */
-#define WIFI_WL_REG_ON      {GPIOJ,{.Pin= GPIO_PIN_1, .Mode = GPIO_MODE_OUTPUT_PP , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_LOW}}
 //#define WIFI_32K_CLK      {GPIOA,{.Pin= GPIO_PIN_8, .Mode = GPIO_MODE_AF_PP , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_LOW , .Alternate = GPIO_AF0_MCO}}
 
 #define WIFI_SDIO_CMD       {GPIOD,{.Pin= GPIO_PIN_2 , .Mode = GPIO_MODE_AF_PP , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_VERY_HIGH, .Alternate = GPIO_AF12_SDIO1}}
@@ -52,6 +46,19 @@
 #define WIFI_SDIO_D1        {GPIOC,{.Pin= GPIO_PIN_9 , .Mode = GPIO_MODE_AF_PP , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_VERY_HIGH, .Alternate = GPIO_AF12_SDIO1}}
 #define WIFI_SDIO_D2        {GPIOC,{.Pin= GPIO_PIN_10, .Mode = GPIO_MODE_AF_PP , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_VERY_HIGH, .Alternate = GPIO_AF12_SDIO1}}
 #define WIFI_SDIO_D3        {GPIOC,{.Pin= GPIO_PIN_11, .Mode = GPIO_MODE_AF_PP , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_VERY_HIGH, .Alternate = GPIO_AF12_SDIO1}}
-#define WIFI_SDIO_OOB_IRQ   {GPIOJ,{.Pin= GPIO_PIN_5,  .Mode = GPIO_MODE_IT_FALLING , .Pull = GPIO_NOPULL , .Speed= GPIO_SPEED_FREQ_VERY_HIGH}}
+
+#ifdef TARGET_ARDUINO_GIGA
+#define WIFI_SDIO_OOB_IRQ   PI_8
+#define WIFI_WL_REG_ON      PB_10
+#define BSP_LED1            PI_12
+#define BSP_LED2            PE_3
+#define BSP_LED3            PJ_13
+#elif TARGET_ARDUINO_PORTENTA
+#define WIFI_SDIO_OOB_IRQ   PJ_5
+#define WIFI_WL_REG_ON      PJ_1
+#define BSP_LED1            PK_5
+#define BSP_LED2            PK_6
+#define BSP_LED3            PK_7
+#endif
 
 #endif

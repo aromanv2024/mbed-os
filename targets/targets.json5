@@ -3548,6 +3548,9 @@
         },
         macros_add: [
             "BT_UART_NO_3M_SUPPORT"
+        ],
+        components_add: [
+            "QSPIF"
         ]
     },
     "ARDUINO_GIGA_CM7": {

@@ -41,7 +41,7 @@ typedef enum
   CYBSP_WIFI_SDIO_D2,
   CYBSP_WIFI_SDIO_D3,
   CYBSP_SDIO_OOB_IRQ,
-  CYBSP_WIFI_MAX,
+  MINIMAL_CYHAL_NUM_PINS,
 } wwd_sdio_pin_t;
 
 void cyhal_system_delay_ms(uint32_t milliseconds);

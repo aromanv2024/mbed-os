@@ -24,6 +24,9 @@
 #include <inttypes.h>
 #include "cyabs_rtos.h"
 #include "cyhal_sdio.h"
+#include <cyhal.h>
+
+#include <minimal_cyhal_config.h>
 
 // Debug print control
 #define SDIO_DEBUG 1
@@ -70,7 +73,22 @@
 #define LINK_MTU        1024
 #define MAX(a,b)        (a>b)?a:b
 
-extern pinconfig_t     PinConfig[];
+/* Pin configuration */
+typedef struct
+{
+  GPIO_TypeDef      *port;
+  GPIO_InitTypeDef  config;
+} sdio_pinconfig_t;
+
+sdio_pinconfig_t SDIOPinConfig[] = {
+    [CYBSP_WIFI_SDIO_CMD] =  WIFI_SDIO_CMD,
+    [CYBSP_WIFI_SDIO_CLK] =  WIFI_SDIO_CLK,
+    [CYBSP_WIFI_SDIO_D0 ] =  WIFI_SDIO_D0,
+    [CYBSP_WIFI_SDIO_D1 ] =  WIFI_SDIO_D1,
+    [CYBSP_WIFI_SDIO_D2 ] =  WIFI_SDIO_D2,
+    [CYBSP_WIFI_SDIO_D3 ] =  WIFI_SDIO_D3,
+};
+
 extern  SD_HandleTypeDef hsd;
 
 // Copied from whd_bus_sdio_protocol.h
@@ -109,7 +127,7 @@ static volatile uint32_t       sdio_transfer_failed = 0;
 static volatile uint32_t       irqstatus = 0;
 static int current_command = 0;
 
-static cy_rslt_t sdio_enable_high_speed(void)
+cy_rslt_t sdio_enable_high_speed(void)
 {
     SDMMC_InitTypeDef sdio_init_structure;
 
@@ -260,12 +278,12 @@ cy_rslt_t cyhal_sdio_init(cyhal_sdio_t *obj, cyhal_gpio_t cmd, cyhal_gpio_t clk,
     __HAL_RCC_GPIOD_CLK_ENABLE();
     __HAL_RCC_SDMMC1_CLK_ENABLE();
 
-    HAL_GPIO_Init(PinConfig[cmd].port, &PinConfig[cmd].config);
-    HAL_GPIO_Init(PinConfig[clk].port, &PinConfig[clk].config);
-    HAL_GPIO_Init(PinConfig[data0].port, &PinConfig[data0].config);
-    HAL_GPIO_Init(PinConfig[data1].port, &PinConfig[data1].config);
-    HAL_GPIO_Init(PinConfig[data2].port, &PinConfig[data2].config);
-    HAL_GPIO_Init(PinConfig[data3].port, &PinConfig[data3].config);
+    HAL_GPIO_Init(SDIOPinConfig[cmd].port, &SDIOPinConfig[cmd].config);
+    HAL_GPIO_Init(SDIOPinConfig[clk].port, &SDIOPinConfig[clk].config);
+    HAL_GPIO_Init(SDIOPinConfig[data0].port, &SDIOPinConfig[data0].config);
+    HAL_GPIO_Init(SDIOPinConfig[data1].port, &SDIOPinConfig[data1].config);
+    HAL_GPIO_Init(SDIOPinConfig[data2].port, &SDIOPinConfig[data2].config);
+    HAL_GPIO_Init(SDIOPinConfig[data3].port, &SDIOPinConfig[data3].config);
 
     /* Reset SDIO Block */
     SDMMC_PowerState_OFF(SDMMC1);
