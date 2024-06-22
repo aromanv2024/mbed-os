@@ -5,6 +5,7 @@
 # Notes:
 # 1. To use this target with PyOCD, you need to install a pack: `pyocd pack install STM32H747XIHx`.
 #    You might also need to run `pyocd pack update` first.
+# 2. Currently breakpoints do not work in OpenOCD for this target, at least with OpenOCD 0.12
 
 # General config parameters
 # -------------------------------------------------------------

@@ -195,6 +195,11 @@ SECTIONS
         *(.stack*)
     } > RAM
 
+    /* Arduino-specific: if CM4_BINARY_START is available, provide it to the code. */
+#ifdef CM4_BINARY_START
+    PROVIDE(__CM4_BINARY_START = CM4_BINARY_START)
+#endif
+
     /* Set stack top to end of RAM, and stack limit move down by
      * size of stack_dummy section */
     __StackTop = ORIGIN(RAM) + LENGTH(RAM);
