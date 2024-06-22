@@ -3549,7 +3549,7 @@
             // Arduino Giga connects the primary USB port (USB-C port) to the USB Full Speed pins.
             // TODO eventually this needs to be runtime configurable so that the two USB ports
             // can use different speeds.  With the current setting, Mbed will not be able to use
-            // the host mode port as that port uses full speed.
+            // the host mode port as that port uses high speed.
             "usb_speed": "USE_USB_OTG_FS",
         },
         macros_add: [

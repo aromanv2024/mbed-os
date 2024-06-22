@@ -70,7 +70,7 @@ WhdSoftAPInterface::WhdSoftAPInterface(WHD_EMAC &emac, OnboardNetworkStack &stac
 int WhdSoftAPInterface::start(const char *ssid, const char *pass, nsapi_security_t security, uint8_t channel,
                               bool start_dhcp_server, const whd_custom_ie_info_t *ie_info, bool ap_sta_concur)
 {
-    ScopedMutexLock lock(_iface_shared.mutex);
+    rtos::ScopedMutexLock lock(_iface_shared.mutex);
 
     nsapi_error_t        err;
     // power up primary emac interface first
@@ -178,7 +178,7 @@ int WhdSoftAPInterface::start(const char *ssid, const char *pass, nsapi_security
 
 int WhdSoftAPInterface::stop(void)
 {
-    ScopedMutexLock lock(_iface_shared.mutex);
+    rtos::ScopedMutexLock lock(_iface_shared.mutex);
 
     if (_dhcp_server && CY_RSLT_SUCCESS != _dhcp_server->stop()) {
         return NSAPI_ERROR_DHCP_FAILURE;

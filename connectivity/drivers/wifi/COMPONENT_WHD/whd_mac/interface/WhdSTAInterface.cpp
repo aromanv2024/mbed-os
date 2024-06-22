@@ -255,7 +255,7 @@ nsapi_error_t WhdSTAInterface::set_credentials(const char *ssid, const char *pas
 
 nsapi_error_t WhdSTAInterface::connect()
 {
-    ScopedMutexLock lock(_iface_shared.mutex);
+    rtos::ScopedMutexLock lock(_iface_shared.mutex);
 
 #define MAX_RETRY_COUNT    ( 5 )
     int i;
@@ -374,7 +374,7 @@ void WhdSTAInterface::wifi_on()
 
 nsapi_error_t WhdSTAInterface::disconnect()
 {
-    ScopedMutexLock lock(_iface_shared.mutex);
+    rtos::ScopedMutexLock lock(_iface_shared.mutex);
 
     if (!_interface) {
         return NSAPI_STATUS_DISCONNECTED;
@@ -507,7 +507,7 @@ static void whd_scan_handler(whd_scan_result_t **result_ptr,
 
 int WhdSTAInterface::internal_scan(WiFiAccessPoint *aps, unsigned count, scan_result_type sres_type)
 {
-    ScopedMutexLock lock(_iface_shared.mutex);
+    rtos::ScopedMutexLock lock(_iface_shared.mutex);
 
     // initialize wiced, this is noop if already init
     if (!_whd_emac.powered_up) {
@@ -516,7 +516,7 @@ int WhdSTAInterface::internal_scan(WiFiAccessPoint *aps, unsigned count, scan_re
         }
     }
 
-    interal_scan_data.sema = new Semaphore();
+    interal_scan_data.sema = new rtos::Semaphore();
     interal_scan_data.sres_type = sres_type;
     interal_scan_data.aps = aps;
     interal_scan_data.count = count;
