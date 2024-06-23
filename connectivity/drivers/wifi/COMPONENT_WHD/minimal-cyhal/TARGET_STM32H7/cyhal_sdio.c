@@ -29,7 +29,7 @@
 #include <minimal_cyhal_config.h>
 
 // Debug print control
-#define SDIO_DEBUG 1
+#define SDIO_DEBUG 0
 #if SDIO_DEBUG
 #define SDIO_PRINT_DEBUG(...) printf(__VA_ARGS__)
 #else
@@ -73,6 +73,26 @@
 #define LINK_MTU        1024
 #define MAX(a,b)        (a>b)?a:b
 
+/* D-cache maintenance for DMA buffers */
+#if defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+    #define _CYHAL_DCACHE_MAINTENANCE
+    #define _CYHAL_DMA_BUFFER_ALIGN_BYTES      (32u)
+#else
+    #define _CYHAL_DMA_BUFFER_ALIGN_BYTES      (4u)
+#endif /* defined (__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U) */
+
+/* Macro to ALIGN */
+#if defined (__ARMCC_VERSION) /* ARM Compiler */
+    #define ALIGN_HAL_COMMON(buf, x) __align(x) buf
+#elif defined   (__GNUC__)    /* GNU Compiler */
+    #define ALIGN_HAL_COMMON(buf, x)  buf __attribute__ ((aligned (x)))
+#elif defined (__ICCARM__)    /* IAR Compiler */
+    #define ALIGN_HAL_COMMON(buf, x) __ALIGNED(x) buf
+#endif
+
+/* Macro to get variable aligned for cache maintenance purpose */
+#define CYHAL_ALIGN_DMA_BUFFER(arg) ALIGN_HAL_COMMON(arg, _CYHAL_DMA_BUFFER_ALIGN_BYTES)
+
 /* Pin configuration */
 typedef struct
 {
@@ -115,7 +135,7 @@ static uint32_t      dctrl;
 static void* irq_handler_arg;
 static cyhal_sdio_irq_handler_t sdio_irq_handler;
 
-static uint8_t       temp_dma_buffer[2048] __attribute__((aligned(8)));
+CYHAL_ALIGN_DMA_BUFFER(static uint8_t       temp_dma_buffer[2048]);
 static uint8_t                     *user_data;
 static uint32_t                     user_data_size;
 static uint8_t                     *dma_data_source;
@@ -191,27 +211,29 @@ static void sdio_prepare_data_transfer(cyhal_transfer_t direction, uint32_t bloc
     dma_transfer_size = (uint32_t)(((data_size + (uint16_t) block_size - 1) / (uint16_t) block_size) * (uint16_t) block_size);
 
     if (direction == CYHAL_WRITE) {
-
-#if !(defined(DUAL_CORE) && defined(CORE_CM4))
-        SCB_CleanDCache_by_Addr((uint32_t *)dma_data_source, data_size + 32);
-#endif
         memcpy(temp_dma_buffer, data, data_size);
         dma_data_source = temp_dma_buffer;
     } else {
-        dma_data_source = (uint8_t *)temp_dma_buffer;
-        //VIKR
-        //memset(dma_data_source,0x12,data_size);
-
-#if !(defined(DUAL_CORE) && defined(CORE_CM4))
-        /* Cache-Invalidate the output from DMA */
-        SCB_CleanDCache_by_Addr((uint32_t *)dma_data_source, data_size + 32);
-#endif
+        dma_data_source = (uint8_t *) temp_dma_buffer;
     }
 
-    SDIO->DTIMER = (uint32_t) 0xFFFFFFFF;
-    SDIO->DLEN   = dma_transfer_size;
+#ifdef _CYHAL_DCACHE_MAINTENANCE
+    if (direction == CYHAL_WRITE)
+    {
+        SCB_CleanDCache_by_Addr((uint32_t*)dma_data_source, block_size * dma_transfer_size);
+    }
+    else
+    {
+        /* Cache-Invalidate the output from DMA */
+        SCB_InvalidateDCache_by_Addr((uint32_t*)dma_data_source,
+                                        data_size + __SCB_DCACHE_LINE_SIZE);
+    }
+#endif
+
+    SDMMC1->DTIMER = (uint32_t) 0xFFFFFFFF;
+    SDMMC1->DLEN   = dma_transfer_size;
     dctrl = sdio_get_blocksize(block_size) | ((direction == CYHAL_READ) ? SDIO_TRANSFER_DIR_TO_SDIO : SDIO_TRANSFER_DIR_TO_CARD) | SDIO_TRANSFER_MODE_BLOCK | SDIO_DPSM_DISABLE  | SDIO_DCTRL_SDIOEN;
-    SDIO->DCTRL = dctrl;
+    SDMMC1->DCTRL = dctrl;
 
     SDMMC1->IDMACTRL  = SDMMC_ENABLE_IDMA_SINGLE_BUFF;
     SDMMC1->IDMABASE0 = (uint32_t) dma_data_source;
@@ -219,37 +241,40 @@ static void sdio_prepare_data_transfer(cyhal_transfer_t direction, uint32_t bloc
 
 static void sdio_enable_bus_irq(void)
 {
-    SDMMC1->MASK = SDMMC_IT_RXOVERR | SDMMC_IT_TXUNDERR | SDMMC_IT_DATAEND | SDMMC_IT_CMDREND | SDMMC_IT_CMDSENT;
+    SDMMC1->MASK = SDIO_ERROR_MASK | SDMMC_IT_DATAEND | SDMMC_IT_CMDREND | SDMMC_IT_CMDSENT;
+}
+
+static void sdio_disable_bus_irq(void)
+{
+    SDMMC1->MASK = 0;
 }
 
 void SDMMC1_IRQHandler(void)
 {
     uint32_t intstatus = SDIO->STA;
 
+    /* Check whether the external interrupt was triggered */
+    if (intstatus & SDMMC_STA_SDIOIT) {
+        /* Clear the interrupt */
+        SDMMC1->ICR = SDMMC_STA_SDIOIT;
+        /* Inform WICED WWD thread */
+        sdio_irq_handler(irq_handler_arg, CYHAL_SDIO_CARD_INTERRUPT);
+    }
+
     irqstatus = intstatus;
-    //VIKR  | SDIO_STA_STBITERR )
-    if ((intstatus & (SDIO_STA_CCRCFAIL | SDIO_STA_DCRCFAIL | SDIO_STA_TXUNDERR | SDIO_STA_RXOVERR)) != 0) {
-        SDIO_PRINT_DEBUG("sdio error flagged\n");
-        sdio_transfer_failed = intstatus;
+    if ((intstatus & SDIO_ERROR_MASK) != 0) {
+        sdio_transfer_failed = true;
         SDIO->ICR = (uint32_t) 0xffffffff;
         cy_rtos_set_semaphore(&sdio_transfer_finished_semaphore, true);
     } else {
         if ((intstatus & (SDMMC_STA_CMDREND | SDMMC_STA_CMDSENT)) != 0) {
             if ((SDMMC1->RESP1 & 0x800) != 0) {
-                sdio_transfer_failed = irqstatus;
+                sdio_transfer_failed = true;
                 cy_rtos_set_semaphore(&sdio_transfer_finished_semaphore, true);
             }
 
             /* Clear all command/response interrupts */
             SDMMC1->ICR = (SDMMC_STA_CMDREND | SDMMC_STA_CMDSENT);
-        }
-
-        /* Check whether the external interrupt was triggered */
-        if (intstatus & SDMMC_STA_SDIOIT) {
-            /* Clear the interrupt */
-            SDMMC1->ICR = SDMMC_STA_SDIOIT;
-            /* Inform WICED WWD thread */
-            sdio_irq_handler(irq_handler_arg, CYHAL_SDIO_CARD_INTERRUPT);
         }
 
         if (intstatus & SDMMC_STA_DATAEND) {
@@ -258,6 +283,7 @@ void SDMMC1_IRQHandler(void)
             SDMMC1->DCTRL    = SDMMC_DCTRL_SDIOEN;
             SDMMC1->IDMACTRL = SDMMC_DISABLE_IDMA;
             SDMMC1->CMD      = 0;
+            sdio_transfer_failed = false;
             cy_rtos_set_semaphore(&sdio_transfer_finished_semaphore, true);
         }
     }
@@ -293,14 +319,6 @@ cy_rslt_t cyhal_sdio_init(cyhal_sdio_t *obj, cyhal_gpio_t cmd, cyhal_gpio_t clk,
     /* Enable the SDIO Clock */
     __HAL_RCC_SDMMC1_CLK_ENABLE();
 
-#if !(defined(DUAL_CORE) && defined(CORE_CM4))
-    /* Disable DCache for STM32H7 family */
-    SCB_CleanDCache();
-    SCB_DisableDCache();
-#endif
-
-    SDIO_PRINT_DEBUG("in init: %p\n", sdio_transfer_finished_semaphore);
-
     // Lower  speed configuration
     SDMMC_InitTypeDef sdio_init_structure;
 
@@ -327,8 +345,6 @@ cy_rslt_t cyhal_sdio_init(cyhal_sdio_t *obj, cyhal_gpio_t cmd, cyhal_gpio_t clk,
     HAL_NVIC_EnableIRQ((IRQn_Type) SDMMC1_IRQn);
     HAL_NVIC_SetPriority(SDMMC1_IRQn, 5, 0);
 
-    SDIO_PRINT_DEBUG("after enable sdio: %p\n", sdio_transfer_finished_semaphore);
-
     if (cy_rtos_init_semaphore(&sdio_transfer_finished_semaphore, 1, 0) != CY_RSLT_SUCCESS) {
         cy_rtos_deinit_semaphore(&sdio_transfer_finished_semaphore);
         return -1;
@@ -353,62 +369,59 @@ cy_rslt_t cyhal_sdio_send_cmd(const cyhal_sdio_t *obj, cyhal_transfer_t directio
 {
     uint32_t loop_count = 0;
     cy_rslt_t result;
-    uint16_t attempts = 0;
-    uint32_t temp_sta;
+    uint32_t sta_value;
 
     if (response != NULL) {
         *response = 0;
     }
     current_command = 0;
 
-restart:
     SDIO->ICR = (uint32_t) 0xFFFFFFFF;
-    ++attempts;
-
-    /* Check if we've tried too many times */
-    if (attempts >= (uint16_t) BUS_LEVEL_MAX_RETRIES) {
-        /* WWD_SDIO_RETRIES_EXCEEDED */
-        result = -1;
-        goto exit;
-    }
 
     /* Send the command */
     SDIO->ARG = argument;
     SDIO->CMD = (uint32_t)(command | SDIO_RESPONSE_SHORT | SDIO_WAIT_NO | SDIO_CPSM_ENABLE);
     loop_count = (uint32_t) COMMAND_FINISHED_CMD52_TIMEOUT_LOOPS;
     do {
-        temp_sta = SDIO->STA;
+        sta_value = SDIO->STA;
         loop_count--;
-        if (loop_count == 0 /*|| ((response != NULL) && ((temp_sta & SDIO_ERROR_MASK) != 0))*/) {
-            SDIO_PRINT_DEBUG("Restart single access loop count %ld  stat %lx\n", loop_count, temp_sta);
+        if (loop_count == 0 || (sta_value & SDIO_ERROR_MASK) != 0) {
             HAL_Delay(10U);
-            goto restart;
         }
-    } while ((temp_sta & SDIO_FLAG_CMDACT) != 0);
+    } while ((sta_value & SDIO_FLAG_CMDACT) != 0);
+
+    if(command == CYHAL_SDIO_CMD_GO_IDLE_STATE && (sta_value & SDMMC_STA_CTIMEOUT_Msk))
+    {
+        // OK, CMD0 always seems to generate a timeout on STM32
+    }
+    else if(command == CYHAL_SDIO_CMD_IO_SEND_OP_COND && (sta_value & SDMMC_STA_CCRCFAIL))
+    {
+        // OK, CMD5 always generates a CRC error on STM32
+    }
+    else if((sta_value & SDIO_ERROR_MASK) != 0)
+    {
+        printf("Warning: SDIO CMD%d failed with STA register 0x%" PRIx32 ".\n", command, sta_value);
+    }
 
     if (response != NULL) {
         *response = SDIO->RESP1;
+        result = CY_RSLT_CREATE(CY_RSLT_TYPE_ERROR, CY_RSLT_MODULE_ABSTRACTION_HAL, 2);
     }
     result = CY_RSLT_SUCCESS;
 
-exit:
-    if (result) {
-        printf("SDIO->POWER %lx \n", SDIO->POWER);
-        printf("SDIO->CLKCR %lx \n", SDIO->CLKCR);
-        printf("result %lx \n", result);
-        printf("cyhal_sdio_send_cmd %s\n", (result == 0) ? "Passed" : "Failed");
-        while (1);
-    }
     SDMMC1->CMD = 0;
 
-    //WPRINT_WHD_DEBUG(("%d %s cmd 0x%x  arg 0x%x  resp 0x%x\n",num++,(direction!=CYHAL_READ)?"Write":"Read",command,argument,(response)?*response:0));
+    SDIO_PRINT_DEBUG("%s cmd%d  arg 0x%" PRIx32 " resp 0x%" PRIx32"\n",
+                     (direction!=CYHAL_READ)?"Write":"Read",
+                     command,
+                     argument,
+                     (response)?*response:0);
     return result;
 }
 
 cy_rslt_t cyhal_sdio_bulk_transfer(cyhal_sdio_t *obj, cyhal_transfer_t direction, uint32_t argument, const uint32_t *data, uint16_t length, uint32_t *response)
 {
     cy_rslt_t result;
-    uint16_t attempts = 0;
     uint32_t  block_size = 64;
     sdio_cmd_argument_t arg;
     uint32_t      cmd;
@@ -416,23 +429,12 @@ cy_rslt_t cyhal_sdio_bulk_transfer(cyhal_sdio_t *obj, cyhal_transfer_t direction
     current_transfer_direction = direction;
     arg.value = argument;
 
-    sdio_enable_bus_irq();
     if (response != NULL) {
         *response = 0;
     }
 
-restart:
     sdio_transfer_failed = 0;
     SDMMC1->ICR = (uint32_t) 0xFFFFFFFF;
-    ++attempts;
-
-    /* Check if we've tried too many times */
-    if (attempts >= (uint16_t) BUS_LEVEL_MAX_RETRIES) {
-        /* WWD_SDIO_RETRIES_EXCEEDED */
-        printf("Too much attempt\n");
-        result = -1;
-        goto exit;
-    }
 
     /* Dodgy STM32 hack to set the CMD53 byte mode size to be the same as the block size */
     if (arg.cmd53.block_mode == 0) {
@@ -450,48 +452,61 @@ restart:
     /* Prepare the SDIO for a data transfer */
     sdio_prepare_data_transfer(direction, block_size, (uint8_t *) data, (uint32_t) length);
 
+    // Once the transfer is set up, enable IRQs, as the STAR.CMDREND flag could still have been
+    // set from an earlier transfer, but it appears to clear by this point.
+    sdio_enable_bus_irq();
+
     /* Send the command */
-    //WPRINT_WHD_DEBUG(("%d bs=%d argument=%x\n",num++,block_size,argument));
     SDMMC1->ARG = argument;
     cmd = (uint32_t)(SDIO_CMD_53 | SDMMC_RESPONSE_SHORT | SDMMC_WAIT_NO | SDMMC_CPSM_ENABLE | SDMMC_CMD_CMDTRANS);
     SDMMC1->CMD = cmd;
 
     /* Wait for the whole transfer to complete */
-    //WPRINT_WHD_DEBUG(("cy_rtos_get_semaphore: %d\n", sdio_transfer_finished_semaphore));
     result = cy_rtos_get_semaphore(&sdio_transfer_finished_semaphore, 50, false);
 
     if (result != CY_RSLT_SUCCESS) {
-        printf("failed getting semaphore\n");
-        goto exit;
+        if(result == CY_RTOS_TIMEOUT) {
+            printf("Warning: SDIO bulk transfer timed out, STA register is 0x%" PRIx32 ".\n", SDMMC1->STA);
+        } else {
+            printf("Warning: SDIO bulk transfer semaphore acquire failure, error 0x%" PRIx32 ".\n", result);
+        }
+        result = CY_RSLT_CREATE(CY_RSLT_TYPE_ERROR, CY_RSLT_MODULE_ABSTRACTION_HAL, 3);
     }
     if (sdio_transfer_failed) {
-        SDIO_PRINT_DEBUG("try again sdio_transfer_failed  %"PRIu32" irq %"PRIu32"\n", sdio_transfer_failed, irqstatus);
-        goto restart;
-    }
-    /* Check if there were any SDIO errors */
-    if ((SDIO->STA & (SDIO_STA_DTIMEOUT | SDIO_STA_CTIMEOUT)) != 0) {
-        SDIO_PRINT_DEBUG("sdio errors SDIO_STA_DTIMEOUT | SDIO_STA_CTIMEOUT\n");
-        goto restart;
-    } else if (((SDIO->STA & (SDIO_STA_CCRCFAIL | SDIO_STA_DCRCFAIL | SDIO_STA_TXUNDERR | SDIO_STA_RXOVERR)) != 0)) {
-        SDIO_PRINT_DEBUG("sdio errors SDIO_STA_CCRCFAIL | SDIO_STA_DCRCFAIL | SDIO_STA_TXUNDERR | SDIO_STA_RXOVER \n");
-        goto restart;
+        // Note: It seems like some transfers do fail with timeouts and those aren't fatal to the driver
+        SDIO_PRINT_DEBUG("Warning: SDIO bulk transfer failed with STA register 0x%" PRIx32 ".\n", irqstatus);
+        result = CY_RSLT_CREATE(CY_RSLT_TYPE_ERROR, CY_RSLT_MODULE_ABSTRACTION_HAL, 2);
     }
 
     if (direction == CYHAL_READ) {
+#ifdef _CYHAL_DCACHE_MAINTENANCE
+        SCB_CleanInvalidateDCache_by_Addr(
+                (uint32_t*)((uint32_t)dma_data_source & ~(__SCB_DCACHE_LINE_SIZE - 1U)),
+                user_data_size + __SCB_DCACHE_LINE_SIZE);
+#endif /* if defined(_CYHAL_DCACHE_MAINTENANCE) */
+
         memcpy(user_data, dma_data_source, (size_t) user_data_size);
     }
 
     if (response != NULL) {
         *response = SDIO->RESP1;
     }
-    result = CY_RSLT_SUCCESS;
 
-exit:
     SDMMC1->CMD = 0;
+    sdio_disable_bus_irq();
 
-    //WPRINT_WHD_DEBUG(("%d %s cmd 53 argument %lx datasize %d  blocknumber 0x%x   cmdis %lx %lu dctrl = %x\n", num++, (direction != CYHAL_READ) ? "Write" : "Read", argument, length, arg.cmd53.count, cmd, cmd, dctrl));
+    SDIO_PRINT_DEBUG("%s cmd53 arg 0x%" PRIx32 " datasize 0x%" PRIx16"  blocknumber 0x%x resp 0x%" PRIx32"\n",
+                     (direction!=CYHAL_READ)?"Write":"Read",
+                     argument,
+                     length,
+                     arg.cmd53.count,
+                     (response)?*response:0);
 
-    return result;
+    // TODO driver is NOT happy if I remove this sleep
+    osDelay(1);
+
+
+    return CY_RSLT_SUCCESS;
 }
 
 cy_rslt_t cyhal_sdio_transfer_async(cyhal_sdio_t *obj, cyhal_transfer_t direction, uint32_t argument, const uint32_t *data, uint16_t length)

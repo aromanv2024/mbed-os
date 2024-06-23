@@ -85,13 +85,6 @@ cy_rslt_t cyhal_gpio_init(cyhal_gpio_t pin, cyhal_gpio_direction_t direction, cy
         interruptIns[pin] = new mbed::InterruptIn(pinName);
     }
 
-    // Workaround to enable GPIOJ clock
-    if (pin == CYBSP_WIFI_WL_REG_ON) {
-        // Ensure FS and BlockDevice are initialized on time if needed
-        // TODO move this
-        //wiced_filesystem_init();
-    }
-
     // Workaround to initialize sdio interface without cypress bsp init
     if (pin == CYBSP_WIFI_WL_REG_ON) {
         cyhal_sdio_t *sdio_p = cybsp_get_wifi_sdio_obj();

@@ -23,10 +23,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string>
-#include "sockets.h"
-#include "resources.h"
+#include <mbed_error.h>
 #include "wiced_filesystem.h"
-#include "wiced_bd.h"
 #include "QSPIFBlockDevice.h"
 #include "MBRBlockDevice.h"
 #include "FATFileSystem.h"
@@ -36,23 +34,16 @@
 #define WIFI_DEFAULT_PARTITION 1
 #define WIFI_DEFAULT_FS 0
 
-QSPIFBlockDevice *qspi_bd = NULL;
-MBRBlockDevice   *mbr_bd = NULL;
-FATFileSystem    *wifi_fs = NULL;
-
-wiced_filesystem_t resource_fs_handle;
 
 MBED_WEAK void wiced_filesystem_mount_error(void)
 {
-    WPRINT_WHD_ERROR(("Failed to mount the filesystem containing the WiFi firmware.\n\r"));
-    whd_print_logbuffer();
+    error("Failed to mount the filesystem containing the WiFi firmware.\n\r");
     while (1) {}
 }
 
 MBED_WEAK void wiced_filesystem_firmware_error(void)
 {
-    WPRINT_WHD_ERROR(("Please run the \"PortentaWiFiFirmwareUpdater\" sketch once to install the WiFi firmware.\n\r"));
-    whd_print_logbuffer();
+    error("WICED wifi module firmware not found at path " WIFI_DEFAULT_FIRMWARE_PATH " on the external block device.  Perhaps it needs to be installed via your board's instructions?\n\r");
     while (1) {}
 }
 
@@ -130,52 +121,65 @@ static wiced_result_t whd_default_firmware_restore(void)
     return WICED_SUCCESS;
 }
 
-wiced_result_t wiced_filesystem_init(void)
+/**
+ * @brief Sets up the file system where the wifi module resources will be loaded from.
+ *
+ * The file system must be mounted at WIFI_DEFAULT_PARTITION (e.g. "/wlan")
+ * Applications can override this function if needed to set up and use different block devices.
+ *
+ * @return Error code or success
+ */
+MBED_WEAK wiced_result_t wiced_filesystem_setup()
 {
-    if (mbr_bd == NULL && wifi_fs == NULL) {
-        WPRINT_WHD_DEBUG(("Initialize FileSystem with Mbed default settings\n\r"));
-        qspi_bd = new QSPIFBlockDevice(PD_11, PD_12, PF_7, PD_13,  PF_10, PG_6, QSPIF_POLARITY_MODE_1, 40000000);
+    static QSPIFBlockDevice *qspi_bd = nullptr;
+    static mbed::MBRBlockDevice *mbr_bd = nullptr;
+    static mbed::FATFileSystem *wifi_fs = nullptr;
 
-        if (qspi_bd->init() == BD_ERROR_OK) {
-            mbr_bd = new MBRBlockDevice(qspi_bd, WIFI_DEFAULT_PARTITION);
-            if (mbr_bd->init() == BD_ERROR_OK) {
-                return WICED_SUCCESS;
-            } else {
-                return whd_default_firmware_restore();
-            }
+    // First initialize QSPI flash
+    if(qspi_bd == nullptr)
+    {
+        qspi_bd = new QSPIFBlockDevice(); // default settings OK thanks to JSON configuration
+        if(qspi_bd->init() != mbed::BD_ERROR_OK)
+        {
+            delete qspi_bd;
+            qspi_bd = nullptr;
+            return WICED_ERROR;
         }
-        return WICED_ERROR;
-    } else {
-        WPRINT_WHD_DEBUG(("FileSystem initialized with user settings\n\r"));
-        return WICED_SUCCESS;
     }
-}
 
-wiced_result_t wiced_filesystem_mount(BlockDevice *device, wiced_filesystem_handle_type_t fs_type, wiced_filesystem_t *fs_handle_out, const char *mounted_name)
-{
-    wifi_fs = new FATFileSystem(mounted_name);
-
-    int err = wifi_fs->mount(device);
-    whd_firmware_check_hook(mounted_name, err);
-    if (!err) {
-        //fs_handle_out = wifi_fs
-        return WICED_SUCCESS;
+    // Then initialize MBR block device on it
+    if(mbr_bd == nullptr)
+    {
+        mbr_bd = new mbed::MBRBlockDevice(qspi_bd, WIFI_DEFAULT_PARTITION);
+        if(mbr_bd->init() != mbed::BD_ERROR_OK)
+        {
+            delete mbr_bd;
+            mbr_bd = nullptr;
+            return WICED_ERROR;
+        }
     }
-    return WICED_ERROR;
+
+    // Finally initialize FAT file system on MBR partition
+    if(wifi_fs == nullptr)
+    {
+        wifi_fs = new mbed::FATFileSystem(WIFI_DEFAULT_MOUNT_NAME);
+        if(wifi_fs->mount(mbr_bd) != mbed::BD_ERROR_OK)
+        {
+            whd_firmware_check_hook(WIFI_DEFAULT_MOUNT_NAME, true);
+            delete mbr_bd;
+            mbr_bd = nullptr;
+            return WICED_ERROR;
+        }
+    }
+
+    whd_firmware_check_hook(WIFI_DEFAULT_MOUNT_NAME, false);
+
+    return WICED_SUCCESS;
 }
 
 wiced_result_t wiced_filesystem_file_open(wiced_filesystem_t *fs_handle, wiced_file_t *file_handle_out, const char *filename, wiced_filesystem_open_mode_t mode)
 {
-    /* This is called by mbed test system */
-    //if (mbr_bd == NULL && wifi_fs == NULL) {
-    //    wiced_filesystem_init();
-    //}
-    //This can be called from user sketch to provide custom block device and mount point before WiFi.beginAP or WiFi.begin
-    if (wifi_fs == NULL) {
-        wiced_filesystem_mount(mbr_bd, WIFI_DEFAULT_FS, fs_handle, WIFI_DEFAULT_MOUNT_NAME);
-    }
-
-    if (wifi_fs == NULL) {
+    if (wiced_filesystem_setup() != WICED_SUCCESS) {
         return WICED_ERROR;
     }
 

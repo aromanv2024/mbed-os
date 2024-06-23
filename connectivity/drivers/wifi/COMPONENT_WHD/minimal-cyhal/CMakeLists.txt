@@ -11,9 +11,16 @@ add_library(mbed-minimal-cyhal STATIC
 	cy_hal.c
 	cyhal_spi.c
 	cyhal_system.c
-	cyhal_gpio.cpp)
+	cyhal_gpio.cpp
+	wiced_filesystem.cpp)
 target_include_directories(mbed-minimal-cyhal PUBLIC .)
-target_link_libraries(mbed-minimal-cyhal PUBLIC mbed-core-flags mbed-cy-rtos-abstraction)
+target_link_libraries(mbed-minimal-cyhal PUBLIC
+	mbed-core-flags
+	mbed-cy-rtos-abstraction)
+target_link_libraries(mbed-minimal-cyhal PRIVATE
+	mbed-storage-qspif
+	mbed-storage-blockdevice
+	mbed-storage-fat)
 
 # This is needed in order to make cybsp_wifi.h include cycfg.h
 target_compile_definitions(mbed-minimal-cyhal PUBLIC COMPONENT_CUSTOM_DESIGN_MODUS)

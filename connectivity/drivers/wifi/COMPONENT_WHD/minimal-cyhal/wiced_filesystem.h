@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Arduino SA
+ * Copyright 2024 Arduino SA
  * SPDX-License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,12 +16,14 @@
  */
 
 /** @file
- *  Provides wiced fs porting to generic mbed APIs
+ * Provides wiced fs porting to generic mbed APIs.
+ * The WHD driver uses this API to load resources out of an "external" filesystem.
+ * We provide an implementation that sends these requests through to an external block device.
  */
 
 #pragma once
 
-#include "whd_config.h"
+#include <mbed_toolchain.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,14 +74,22 @@ typedef int wiced_file_t;
  */
 typedef int wiced_filesystem_handle_type_t;
 
+// Global "FS handle" object.  Just here to match the WHD driver's expectations, we have one global
+// filesystem object.
+static wiced_filesystem_t resource_fs_handle = 0;
+
 /**
- * Initialise the BlockDevice and filesystem module
+ * @brief Sets up the file system where the wifi module resources will be loaded from.
  *
- * Initialises the BlockDevice and filesystem module before mounting a physical device.
+ * The file system must be mounted at WIFI_DEFAULT_PARTITION (e.g. "/wlan")
+ * Applications can override this function if needed to set up and use different block devices.
  *
- * @return WICED_SUCCESS on success
+ * This function is lazily called the first time the wi-fi FS is accessed, or it can be
+ * called by user code if you wish to access the wi-fi firmware block device.
+ *
+ * @return Error code or success
  */
-wiced_result_t wiced_filesystem_init(void);
+MBED_WEAK wiced_result_t wiced_filesystem_setup();
 
 /**
  * Open a file for reading or writing

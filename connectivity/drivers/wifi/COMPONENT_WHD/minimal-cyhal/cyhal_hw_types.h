@@ -42,6 +42,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "minimal_cyhal_config.h"
+
 /*
  #include "TODO: Port specific header file"
  */
