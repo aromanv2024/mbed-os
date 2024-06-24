@@ -24,6 +24,8 @@
 #pragma once
 
 #include <mbed_toolchain.h>
+#include <stdio.h>
+#include <inttypes.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,7 +91,7 @@ static wiced_filesystem_t resource_fs_handle = 0;
  *
  * @return Error code or success
  */
-MBED_WEAK wiced_result_t wiced_filesystem_setup();
+wiced_result_t wiced_filesystem_setup();
 
 /**
  * Open a file for reading or writing

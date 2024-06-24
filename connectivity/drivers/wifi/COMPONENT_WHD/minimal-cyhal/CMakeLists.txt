@@ -17,10 +17,6 @@ target_include_directories(mbed-minimal-cyhal PUBLIC .)
 target_link_libraries(mbed-minimal-cyhal PUBLIC
 	mbed-core-flags
 	mbed-cy-rtos-abstraction)
-target_link_libraries(mbed-minimal-cyhal PRIVATE
-	mbed-storage-qspif
-	mbed-storage-blockdevice
-	mbed-storage-fat)
 
 # This is needed in order to make cybsp_wifi.h include cycfg.h
 target_compile_definitions(mbed-minimal-cyhal PUBLIC COMPONENT_CUSTOM_DESIGN_MODUS)
@@ -32,5 +28,11 @@ if(STM32H7 IN_LIST MBED_TARGET_LABELS)
 
 	if(STM32H747_ARDUINO IN_LIST MBED_TARGET_LABELS)
 		target_include_directories(mbed-minimal-cyhal PUBLIC TARGET_STM32H7/TARGET_STM32H747_ARDUINO)
+		target_sources(mbed-minimal-cyhal PRIVATE
+			TARGET_STM32H7/TARGET_STM32H747_ARDUINO/wiced_filesystem_setup.cpp)
+		target_link_libraries(mbed-minimal-cyhal PRIVATE
+			mbed-storage-qspif
+			mbed-storage-blockdevice
+			mbed-storage-fat)
 	endif()
 endif()

@@ -473,8 +473,7 @@ cy_rslt_t cyhal_sdio_bulk_transfer(cyhal_sdio_t *obj, cyhal_transfer_t direction
         result = CY_RSLT_CREATE(CY_RSLT_TYPE_ERROR, CY_RSLT_MODULE_ABSTRACTION_HAL, 3);
     }
     if (sdio_transfer_failed) {
-        // Note: It seems like some transfers do fail with timeouts and those aren't fatal to the driver
-        SDIO_PRINT_DEBUG("Warning: SDIO bulk transfer failed with STA register 0x%" PRIx32 ".\n", irqstatus);
+        printf("Warning: SDIO bulk transfer failed with STA register 0x%" PRIx32 ".\n", irqstatus);
         result = CY_RSLT_CREATE(CY_RSLT_TYPE_ERROR, CY_RSLT_MODULE_ABSTRACTION_HAL, 2);
     }
 
